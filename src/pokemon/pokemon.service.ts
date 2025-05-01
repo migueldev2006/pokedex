@@ -1,9 +1,15 @@
-import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePokemonDto } from './dto/create-pokemon.dto';
 import { UpdatePokemonDto } from './dto/update-pokemon.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Pokemon } from './entities/pokemon.entity';
 import { isValidObjectId, Model } from 'mongoose';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class PokemonService {
@@ -18,23 +24,31 @@ export class PokemonService {
       const pokemon = await this.pokemonModel.create(createPokemonDto);
       return pokemon;
     } catch (error) {
-
-      if(error.code === 1000){
-        throw new BadRequestException(`El Pokémon existe en la base de datos ${JSON.stringify(error.keyValu)}`)
+      if (error.code === 1000) {
+        throw new BadRequestException(
+          `El Pokémon existe en la base de datos ${JSON.stringify(error.keyValu)}`,
+        );
       }
       console.log(error);
-      throw new InternalServerErrorException(`No se puede crear un Pokémon - revise log.`)
+      throw new InternalServerErrorException(
+        `No se puede crear un Pokémon - revise log.`,
+      );
     }
   }
 
-  async findAll() {
-    const pokemon = await this.pokemonModel.find();
+  async findAll(paginationDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginationDto;
+    const pokemon = await this.pokemonModel
+      .find()
+      .limit(limit)
+      .skip(offset)
+      .sort({ no: 1 });
     return pokemon;
   }
 
   async findOne(term: string) {
     let pokemon: Pokemon | null = null;
-  
+
     if (isValidObjectId(term)) {
       pokemon = await this.pokemonModel.findById(term);
     }
@@ -45,11 +59,12 @@ export class PokemonService {
       pokemon = await this.pokemonModel.findOne({ no: +term });
     }
     if (!pokemon) {
-      throw new NotFoundException(`No se encontró un Pokémon con el identificador "${term}"`);
+      throw new NotFoundException(
+        `No se encontró un Pokémon con el identificador "${term}"`,
+      );
     }
     return pokemon;
   }
-  
 
   async update(term: string, updatePokemonDto: UpdatePokemonDto) {
     const pokemon = await this.findOne(term);
@@ -73,11 +88,14 @@ export class PokemonService {
   }
 
   private handleExceptions(error: any) {
-    if (error.code === 11000) { 
-      throw new BadRequestException(`El Pokémon ya existe en la base de datos: ${JSON.stringify(error.keyValue)}`);
+    if (error.code === 11000) {
+      throw new BadRequestException(
+        `El Pokémon ya existe en la base de datos: ${JSON.stringify(error.keyValue)}`,
+      );
     }
     console.error(error);
-    throw new InternalServerErrorException(`No se pudo procesar la operación - Verificar logs.`);
+    throw new InternalServerErrorException(
+      `No se pudo procesar la operación - Verificar logs.`,
+    );
   }
 }
-
